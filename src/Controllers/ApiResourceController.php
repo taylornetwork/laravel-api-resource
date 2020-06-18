@@ -20,6 +20,21 @@ abstract class ApiResourceController extends ApiController
     protected $model;
 
     /**
+     * Disabled methods
+     *
+     * @var array
+     */
+    protected $disabled = [];
+
+
+    /**
+     * Enabled methods
+     *
+     * @var array
+     */
+    protected $enabled = ['*'];
+
+    /**
      * Get or guess the model class name.
      *
      * @return string
@@ -67,11 +82,15 @@ abstract class ApiResourceController extends ApiController
      * Get all model instances
      *
      * @param Request $request
-     * @return Collection
+     * @return Collection|Response
      * @throws ModelNotFoundException
      */
-    public function index(Request $request): Collection
+    public function index(Request $request)
     {
+        if(!$this->isEnabled('index')) {
+            return $this->notImplemented();
+        }
+
         if($request->has('with')) {
             return $this->staticModel()::with($request->with)->get();
         }
@@ -83,11 +102,15 @@ abstract class ApiResourceController extends ApiController
      * Get model instance from id
      *
      * @param $id
-     * @return ApiResourceModel
+     * @return ApiResourceModel|Response
      * @throws ModelNotFoundException
      */
-    public function show($id): ApiResourceModel
+    public function show($id)
     {
+        if(!$this->isEnabled('show')) {
+            return $this->notImplemented();
+        }
+
         return $this->staticModel()::find($id);
     }
 
@@ -95,11 +118,15 @@ abstract class ApiResourceController extends ApiController
      * Store the newly created data
      *
      * @param Request $request
-     * @return ApiResourceModel
+     * @return ApiResourceModel|Response
      * @throws ModelNotFoundException
      */
-    public function store(Request $request): ApiResourceModel
+    public function store(Request $request)
     {
+        if(!$this->isEnabled('store')) {
+            return $this->notImplemented();
+        }
+
         $request->validate($this->model()->getValidationRules());
         return $this->staticModel()::create($request->only($this->model()->getFillable()));
     }
@@ -114,6 +141,10 @@ abstract class ApiResourceController extends ApiController
      */
     public function update($id, Request $request): Response
     {
+        if(!$this->isEnabled('update')) {
+            return $this->notImplemented();
+        }
+
         $request->validate($this->model()->getValidationRules());
         $this->staticModel()::find($id)->update($request->only($this->model()->getFillable()));
         return $this->ok();
@@ -128,7 +159,25 @@ abstract class ApiResourceController extends ApiController
      */
     public function destroy($id): Response
     {
+        if(!$this->isEnabled('destroy')) {
+            return $this->notImplemented();
+        }
+
         $this->staticModel()::find($id)->delete();
         return $this->ok();
+    }
+
+    /**
+     * Determine if the given method is enabled.
+     *
+     * @param string $method
+     * @return bool
+     */
+    protected function isEnabled(string $method): bool
+    {
+        if(in_array('*', $this->enabled)) {
+            return !in_array($method, $this->disabled);
+        }
+        return in_array($method, $this->enabled);
     }
 }
